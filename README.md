@@ -1,60 +1,66 @@
-# OpenRA
+# Red War
 
-A Libre/Free Real Time Strategy game engine supporting early Westwood classics.
+Red War is a personal real-time strategy project built on top of the [OpenRA](https://www.openra.net) engine.
+It started as a copy of OpenRA and is being reshaped step by step as a way to learn how such a game is put together
+and to see what can be achieved by changing it.
 
-* Website: [https://www.openra.net](https://www.openra.net)
-* Chat: [#openra on Libera](ircs://irc.libera.chat:6697/openra) ([web](https://web.libera.chat/#openra)) or [Discord](https://discord.openra.net) ![Discord Badge](https://discordapp.com/api/guilds/153649279762694144/widget.png)
-* Repository: [https://github.com/OpenRA/OpenRA](https://github.com/OpenRA/OpenRA) ![Continuous Integration](https://github.com/OpenRA/OpenRA/workflows/Continuous%20Integration/badge.svg)
+> **This project is not affiliated with, endorsed by or supported by the OpenRA project or Electronic Arts.**
+> It is an independent fork and I am not collaborating with the upstream project.
 
-Please read the [FAQ](https://github.com/OpenRA/OpenRA/wiki/FAQ) in our [Wiki](https://github.com/OpenRA/OpenRA/wiki) and report problems at [https://github.com/OpenRA/OpenRA/issues](https://github.com/OpenRA/OpenRA/issues).
+## What is different from OpenRA
 
-Join the [Forum](https://forum.openra.net/) for discussion.
+Everything below is on top of the unmodified OpenRA `bleed` branch as of October 2026.
 
-## Play
+### Flak Tank (Allies, Red Alert mod)
 
-Distributed mods include a reimagining of
+A support tank that fills the Allies' missing mobile anti-air role.
 
-* Command & Conquer: Red Alert
-* Command & Conquer: Tiberian Dawn
-* Dune 2000
+| | Medium Tank | Flak Tank |
+|---|---|---|
+| Cost | 850 | 1000 |
+| Health | 46000 | 46000 |
+| Requires | Service Depot | Service Depot and Radar Dome |
+| Main gun | 90mm | improved 90mm (`90mmHV`): 5200 damage, 6 cell range, splash 192 |
+| Anti-air | none | two independent flak guns that fire alternately |
 
-EA has not endorsed and does not support this product.
+- The hull and turret use the original Medium Tank sprites, and the flak guns use the Mobile Flak turret sprites.
+  Only small overlays (a lengthened barrel and rear antennas), the build icon and a dedicated wreck are new files.
+- Each flak gun has its own turret and recoil. The main gun has a longer barrel to match its longer range.
 
-Check our [Playing the Game](https://github.com/OpenRA/OpenRA/wiki/Playing-the-game) Guide to win multiplayer matches.
+## Building and running
 
-## Contribute
+You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Then:
 
-* Please read [INSTALL.md](https://github.com/OpenRA/OpenRA/blob/bleed/INSTALL.md) and [Compiling](https://github.com/OpenRA/OpenRA/wiki/Compiling) on how to set up an OpenRA development environment.
-* See [Hacking](https://github.com/OpenRA/OpenRA/wiki/Hacking) for a (now very outdated) overview of the engine.
-* Read and follow our [Code of Conduct](https://github.com/OpenRA/OpenRA/blob/bleed/CODE_OF_CONDUCT.md).
-* To get your patches merged, please adhere to the [Contributing](https://github.com/OpenRA/OpenRA/blob/bleed/CONTRIBUTING.md) guidelines.
+```
+make
+./launch-game.sh Game.Mod=ra
+```
 
-## Mapping
+See [INSTALL.md](INSTALL.md) for platform specific notes (Windows, Linux, macOS), and run `make help` for more targets
+(`make check` for style checks, `make test` for YAML checks, `make tests` for the unit tests).
 
-* We offer a [Mapping](https://github.com/OpenRA/OpenRA/wiki/Mapping) Tutorial as you can change gameplay drastically with custom rules.
-* For scripted mission have a look at the [Lua API](https://docs.openra.net/en/release/lua/).
-* If you want to share your maps with the community, upload them at the [OpenRA Resource Center](https://resource.openra.net).
+## Original game content
 
-## Modding
+The sprites, sounds and music of the original Red Alert are **not** part of this repository and are not redistributed.
+On first start the game offers to install the content, either from your own copy of the original game or via its
+content installer. Without that content the game cannot show the original graphics.
 
-* Download a copy of the [OpenRA Mod SDK](https://github.com/OpenRA/OpenRAModSDK) to start your own mod.
-* Check the [Modding Guide](https://github.com/OpenRA/OpenRA/wiki/Modding-Guide) to create your own classic RTS.
-* There exists an auto-generated [Trait documentation](https://docs.openra.net/en/latest/release/traits/) to get started with yaml files.
-* Some hints on how to create new OpenRA compatible [Pixelart](https://github.com/OpenRA/OpenRA/wiki/Pixelart).
-* Upload total conversions at [our Mod DB profile](https://www.moddb.com/games/openra/mods).
+## Multiplayer
 
-## Support
+Multiplayer still works, but only between players running the **same build of this project**.
+The rules differ from official OpenRA, so this version cannot join official OpenRA games, and official clients
+cannot join games hosted from this version. Every player must use exactly the same code, otherwise a match will
+go out of sync.
 
-* Sponsor a [mirror server](https://github.com/OpenRA/OpenRAWebsiteV3/tree/master/packages) if you have some bandwidth to spare.
-* You can immediately set up a [Dedicated](https://github.com/OpenRA/OpenRA/wiki/Dedicated-Server) Game Server.
+To play with a friend: one player hosts (`Multiplayer` -> `Host`), the others join by IP address or over the local network.
 
-## License
-Copyright (c) OpenRA Developers and Contributors
-This file is part of OpenRA, which is free software. It is made
-available to you under the terms of the GNU General Public License
-as published by the Free Software Foundation, either version 3 of
-the License, or (at your option) any later version. For more
-information, see [COPYING](https://github.com/OpenRA/OpenRA/blob/bleed/COPYING).
+## License and credits
 
-# Sponsors
-Free code signing on Windows provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+This project is free software released under the terms of the
+[GNU General Public License, version 3 or later](COPYING), the same license as OpenRA.
+
+- The engine and most of the game data are the work of the [OpenRA developers and contributors](AUTHORS).
+  Their copyright notices are kept in the source files.
+- Modified in 2026 by Jerzy Szajner (see the git history for the exact changes).
+- *Command & Conquer* and *Red Alert* are trademarks of Electronic Arts. They are mentioned here only to describe
+  the games this project is based on.
