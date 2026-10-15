@@ -25,6 +25,10 @@ FLAK-23-AA:
 	Warhead@1Dam: SpreadDamage
 		Damage: 1200
 
+FLAK-23-AA-TWIN:
+	Inherits: FLAK-23-AA
+	ReloadDelay: 20
+
 FLAK-23-AG:
 	Inherits: ^AACannon
 	Range: 6c0

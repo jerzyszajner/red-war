@@ -58,6 +58,19 @@
 		Versus:
 			Heavy: 115
 
+90mmHV:
+	Inherits: 90mm
+	ReloadDelay: 55
+	Range: 6c0
+	Warhead@1Dam: SpreadDamage
+		Spread: 192
+		Damage: 5200
+		Versus:
+			None: 45
+			Wood: 80
+			Light: 85
+			Concrete: 55
+
 105mm:
 	Inherits: ^Cannon
 	ReloadDelay: 70

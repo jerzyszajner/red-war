@@ -11,6 +11,19 @@
 	RenderSprites:
 		Image: 2tnk.destroyed
 
+GTNK.Husk:
+	Inherits: ^Husk
+	Tooltip:
+		Name: actor-gtnk-husk-name
+	ThrowsParticle@turret:
+		Anim: turret
+	TransformOnCapture:
+		IntoActor: gtnk
+	InfiltrateForTransform:
+		IntoActor: gtnk
+	RenderSprites:
+		Image: gtnk.destroyed
+
 3TNK.Husk:
 	Inherits: ^Husk
 	Tooltip:

@@ -145,6 +145,91 @@ V2RL:
 		Types: Veterancy
 		Prerequisites: vehicles.upgraded
 
+GTNK:
+	Inherits: ^TrackedVehicle
+	Inherits@GAINSEXPERIENCE: ^GainsExperience
+	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 225
+		Prerequisites: fix, dome, ~vehicles.allies, ~techlevel.medium
+		Description: actor-gtnk.description
+	Valued:
+		Cost: 1000
+	Tooltip:
+		Name: actor-gtnk.name
+		GenericName: actor-gtnk.generic-name
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	Health:
+		HP: 46000
+	Armor:
+		Type: Heavy
+	Mobile:
+		Speed: 72
+	RevealsShroud:
+		MinRange: 4c0
+		Range: 7c0
+		RevealGeneratedShroud: False
+	RevealsShroud@GAPGEN:
+		Range: 4c0
+	Turreted:
+		TurnSpeed: 20
+	Turreted@AA1:
+		Turret: aa1
+		Offset: 0,-94,0
+		TurnSpeed: 40
+	Turreted@AA2:
+		Turret: aa2
+		Offset: 0,94,0
+		TurnSpeed: 40
+	Armament@PRIMARY:
+		Weapon: 90mmHV
+		Recoil: 128
+		RecoilRecovery: 38
+		LocalOffset: 850,0,80
+		MuzzleSequence: muzzle
+	Armament@AA1:
+		Name: secondary
+		Turret: aa1
+		Weapon: FLAK-23-AA-TWIN
+		Recoil: 85
+		LocalOffset: 512,0,260
+	Armament@AA2:
+		Name: secondary
+		Turret: aa2
+		Weapon: FLAK-23-AA-TWIN
+		FireDelay: 10
+		Recoil: 85
+		LocalOffset: 512,0,260
+	AttackTurreted:
+		Turrets: primary, aa1, aa2
+	WithMuzzleOverlay:
+	WithSpriteTurret:
+	WithSpriteTurret@BARREL:
+		Sequence: barrel
+	WithSpriteTurret@ANT:
+		Sequence: ant
+	WithSpriteTurret@AA1:
+		Turret: aa1
+		Sequence: aa
+		Palette: player-noshadow
+		IsPlayerPalette: true
+	WithSpriteTurret@AA2:
+		Turret: aa2
+		Sequence: aa
+		Palette: player-noshadow
+		IsPlayerPalette: true
+	SpawnActorOnDeath:
+		Actor: GTNK.Husk
+	ProducibleWithLevel:
+		Prerequisites: vehicles.upgraded
+	Selectable:
+		DecorationBounds: 1194, 1194
+	WithProductionIconOverlay:
+		Types: Veterancy
+		Prerequisites: vehicles.upgraded
+
 3TNK:
 	Inherits: ^TrackedVehicle
 	Inherits@GAINSEXPERIENCE: ^GainsExperience

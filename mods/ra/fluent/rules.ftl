@@ -269,6 +269,7 @@ actor-facf =
 
 ## husks.yaml
 actor-2tnk-husk-name = Husk (Medium Tank)
+actor-gtnk-husk-name = Husk (Flak Tank)
 actor-3tnk-husk-name = Husk (Heavy Tank)
 actor-4tnk-husk-name = Husk (Mammoth Tank)
 actor-harv-fullhusk-name = Husk (Ore Truck)
@@ -762,6 +763,15 @@ actor-2tnk =
     Allied Main Battle Tank.
       Strong vs Vehicles
       Weak vs Infantry and Aircraft
+
+actor-gtnk =
+    .name = Flak Tank
+    .generic-name = Tank
+    .description =
+    Allied support tank with an improved long-range
+    cannon and an anti-air flak gun. Requires Radar Dome.
+      Strong vs Vehicles and Aircraft
+      Weak vs Infantry
 
 actor-3tnk =
     .name = Heavy Tank

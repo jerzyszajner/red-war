@@ -125,6 +125,51 @@ hhusk2:
 		UseClassicFacings: True
 		ZOffset: -512
 
+gtnk:
+	Defaults:
+		Filename: 2tnk.shp
+	idle:
+		Facings: 32
+		UseClassicFacings: True
+	turret:
+		Start: 32
+		Facings: 32
+		UseClassicFacings: True
+	barrel:
+		Filename: gtnk-barrel.png
+		Facings: 32
+		UseClassicFacings: True
+		ZOffset: 8
+	ant:
+		Filename: gtnk-ant.png
+		Facings: 32
+		UseClassicFacings: True
+		ZOffset: 12
+	aa:
+		Filename: ftrk.shp
+		Start: 32
+		Facings: 32
+		UseClassicFacings: True
+		ZOffset: 16
+	muzzle:
+		Filename: gunfire2.shp
+		Length: 5
+	icon:
+		Filename: gtnkicon.png
+
+gtnk.destroyed:
+	idle:
+		Filename: 2tnk.shp
+		Facings: 32
+		UseClassicFacings: True
+		ZOffset: -512
+	turret:
+		Filename: 2tnk.shp
+		Start: 32
+		Facings: 32
+		UseClassicFacings: True
+		ZOffset: -512
+
 3tnk:
 	Defaults:
 		Filename: 3tnk.shp
