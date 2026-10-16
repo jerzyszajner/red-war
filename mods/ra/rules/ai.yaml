@@ -386,6 +386,7 @@ Player:
 			ftrk: 30
 			1tnk: 50
 			2tnk: 50
+			gtnk: 20
 			3tnk: 50
 			4tnk: 25
 			ttnk: 25
@@ -426,6 +427,7 @@ Player:
 			ftrk: 30
 			1tnk: 40
 			2tnk: 50
+			gtnk: 20
 			3tnk: 50
 			4tnk: 25
 			ttnk: 25
@@ -477,6 +479,7 @@ Player:
 			ftrk: 50
 			1tnk: 50
 			2tnk: 50
+			gtnk: 20
 			3tnk: 50
 			4tnk: 25
 			ttnk: 25
