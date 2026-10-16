@@ -457,7 +457,7 @@ label-mouse-control-desc-modern-edgescroll = or by moving the cursor to the edge
 checkbox-edgescroll-container = Screen Edge Panning
 
 ## mainmenu.yaml
-label-main-menu-title = OpenRA
+label-main-menu-title = Red War
 label-singleplayer-title = Singleplayer
 button-extras-title = Extras
 button-main-menu-content = Manage Content
