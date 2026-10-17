@@ -99,6 +99,20 @@ namespace OpenRA.Mods.Common.Widgets
 		public int MinimumRows = 4;
 		public int MaximumRows = int.MaxValue;
 
+		// Holding the left mouse button on an icon keeps queueing items, speeding up the longer it is held.
+		// Holding the right mouse button keeps cancelling items in the same way (after an item was cancelled, not paused).
+		const int HoldRepeatDelay = 400;
+		const int HoldRepeatSlowInterval = 250;
+		const int HoldRepeatFastInterval = 50;
+		const int HoldRepeatAccelerationTime = 3000;
+
+		string heldIconName;
+		MouseButton heldButton;
+		Modifiers heldModifiers;
+		bool lastClickRepeatable;
+		long holdStart;
+		long nextHoldRepeat;
+
 		public int IconRowOffset = 0;
 		public int MaxIconRowOffset = int.MaxValue;
 
@@ -245,7 +259,53 @@ namespace OpenRA.Mods.Common.Widgets
 					UpdateCachedProductionIconOverlays();
 
 				RefreshIcons();
+				TickHeldIcon();
 			}
+			else
+				StopHold();
+		}
+
+		void StopHold()
+		{
+			if (heldIconName != null)
+				YieldMouseFocus(default);
+		}
+
+		void TickHeldIcon()
+		{
+			if (heldIconName == null || Game.RunTime < nextHoldRepeat)
+				return;
+
+			var icon = icons.Values.FirstOrDefault(i => i.Name == heldIconName);
+			var item = icon?.Queued.FirstOrDefault();
+			if (heldButton == MouseButton.Right)
+			{
+				if (item == null)
+				{
+					StopHold();
+					return;
+				}
+
+				// Cancel directly: the next item may already be started and must not be put on hold instead.
+				Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickSound, null);
+				World.IssueOrder(Order.CancelProduction(CurrentQueue.Actor, heldIconName, 1));
+			}
+			else if (icon == null || (item != null && (item.Paused || (item.Done && icon.Actor.HasTraitInfo<BuildingInfo>()))) ||
+				!HandleLeftClick(item, icon, 1, heldModifiers, true))
+			{
+				StopHold();
+				return;
+			}
+
+			var now = Game.RunTime;
+			var progress = Math.Clamp((now - holdStart - HoldRepeatDelay) / (float)HoldRepeatAccelerationTime, 0f, 1f);
+			nextHoldRepeat = now + (int)float.Lerp(HoldRepeatSlowInterval, HoldRepeatFastInterval, progress);
+		}
+
+		public override bool YieldMouseFocus(MouseInput mi)
+		{
+			heldIconName = null;
+			return base.YieldMouseFocus(mi);
 		}
 
 		public override void MouseEntered()
@@ -285,6 +345,22 @@ namespace OpenRA.Mods.Common.Widgets
 				}
 			}
 
+			if (mi.Event == MouseInputEvent.Up && heldIconName != null && mi.Button == heldButton)
+				StopHold();
+
+			// Left click while holding the right button: cancel everything queued of the held type at once.
+			if (mi.Event == MouseInputEvent.Down && mi.Button == MouseButton.Left && heldIconName != null && heldButton == MouseButton.Right)
+			{
+				var count = CurrentQueue.AllQueued().Count(i => i.Item == heldIconName);
+				if (count > 0)
+				{
+					Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickSound, null);
+					World.IssueOrder(Order.CancelProduction(CurrentQueue.Actor, heldIconName, count));
+				}
+
+				return true;
+			}
+
 			if (icon == null)
 				return false;
 
@@ -292,7 +368,18 @@ namespace OpenRA.Mods.Common.Widgets
 			if (mi.Event != MouseInputEvent.Down)
 				return true;
 
-			return HandleEvent(icon, mi.Button, mi.Modifiers);
+			lastClickRepeatable = false;
+			var result = HandleEvent(icon, mi.Button, mi.Modifiers);
+			if (lastClickRepeatable && (mi.Button == MouseButton.Left || mi.Button == MouseButton.Right) && TakeMouseFocus(mi))
+			{
+				heldIconName = icon.Name;
+				heldButton = mi.Button;
+				heldModifiers = mi.Modifiers;
+				holdStart = Game.RunTime;
+				nextHoldRepeat = holdStart + HoldRepeatDelay;
+			}
+
+			return result;
 		}
 
 		protected bool PickUpCompletedBuildingIcon(ProductionItem item)
@@ -316,7 +403,7 @@ namespace OpenRA.Mods.Common.Widgets
 			PickUpCompletedBuildingIcon(CurrentQueue.CurrentItem());
 		}
 
-		bool HandleLeftClick(ProductionItem item, ProductionIcon icon, int handleCount, Modifiers modifiers)
+		bool HandleLeftClick(ProductionItem item, ProductionIcon icon, int handleCount, Modifiers modifiers, bool repeat = false)
 		{
 			if (PickUpCompletedBuildingIcon(item))
 			{
@@ -347,7 +434,7 @@ namespace OpenRA.Mods.Common.Widgets
 				// Queue a new item
 				var canQueue = CurrentQueue.CanQueue(buildable, out var notification, out var textNotification);
 
-				if (!CurrentQueue.AllQueued().Any())
+				if (!repeat && !CurrentQueue.AllQueued().Any())
 				{
 					Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Speech", notification, World.LocalPlayer.Faction.InternalName);
 					TextNotificationsManager.AddTransientLine(World.LocalPlayer, textNotification);
@@ -357,6 +444,7 @@ namespace OpenRA.Mods.Common.Widgets
 				{
 					var queued = !modifiers.HasModifier(Modifiers.Ctrl);
 					World.IssueOrder(Order.StartProduction(CurrentQueue.Actor, icon.Name, handleCount, queued));
+					lastClickRepeatable = true;
 					return true;
 				}
 			}
@@ -396,6 +484,7 @@ namespace OpenRA.Mods.Common.Widgets
 				TextNotificationsManager.AddTransientLine(World.LocalPlayer, CurrentQueue.Info.CancelledTextNotification);
 
 				World.IssueOrder(Order.CancelProduction(CurrentQueue.Actor, icon.Name, handleCount));
+				lastClickRepeatable = true;
 			}
 			else
 			{
