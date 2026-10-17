@@ -9,23 +9,8 @@ and to see what can be achieved by changing it.
 
 ## What is different from OpenRA
 
-Everything below is on top of the unmodified OpenRA `bleed` branch as of October 2026.
-
-### Flak Tank (Allies, Red Alert mod)
-
-A support tank that fills the Allies' missing mobile anti-air role.
-
-| | Medium Tank | Flak Tank |
-|---|---|---|
-| Cost | 850 | 1000 |
-| Health | 46000 | 46000 |
-| Requires | Service Depot | Service Depot and Radar Dome |
-| Main gun | 90mm | improved 90mm (`90mmHV`): 5200 damage, 6 cell range, splash 192 |
-| Anti-air | none | two independent flak guns that fire alternately |
-
-- The hull and turret use the original Medium Tank sprites, and the flak guns use the Mobile Flak turret sprites.
-  Only small overlays (a lengthened barrel and rear antennas), the build icon and a dedicated wreck are new files.
-- Each flak gun has its own turret and recoil. The main gun has a longer barrel to match its longer range.
+Everything is on top of the unmodified OpenRA `bleed` branch as of October 2026.
+See [CHANGELOG.md](CHANGELOG.md) for the list of changes.
 
 ## Building and running
 
