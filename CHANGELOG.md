@@ -31,3 +31,14 @@ Implemented in `ProductionPaletteWidget`.
   so the first right click still puts a running item on hold.
 - **Left click while holding right:** cancels all queued items of that type at once.
 - Shift+click (5 items) and the other click behaviors are unchanged.
+
+## Repair All button (2026-10-22)
+
+New button in the Red Alert sidebar, right next to Repair. Implemented in `RepairAllOrderButtonLogic`.
+
+- **Click:** starts repairs on every damaged building you own that is not being repaired yet.
+  Costs and speed are the same as repairing each building by hand.
+- **Click again while repairs run:** stops the repairs.
+- The icon (two wrenches, built from the Repair icon) lights up amber like the Repair button while any building is being repaired.
+- **Hotkey:** Shift+C (`RepairAll`, can be changed in the settings).
+- A batch of orders plays the "Repairing" notification once instead of once per building.
