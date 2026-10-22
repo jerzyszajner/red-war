@@ -107,7 +107,7 @@ namespace OpenRA.Mods.Common.Traits
 				self.RevokeCondition(repairTokens.Pop());
 		}
 
-		public void RepairBuilding(Actor self, Player player)
+		public void RepairBuilding(Actor self, Player player, bool notify = true)
 		{
 			if (IsTraitDisabled || !self.AppearsFriendlyTo(player.PlayerActor))
 				return;
@@ -116,7 +116,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (Repairers.Remove(player))
 			{
 				UpdateCondition(self);
-				if (Repairers.Count == 0)
+				if (notify && Repairers.Count == 0)
 				{
 					Game.Sound.PlayNotification(self.World.Map.Rules, player, "Speech", Info.RepairingStoppedNotification, player.Faction.InternalName);
 					TextNotificationsManager.AddTransientLine(self.Owner, Info.RepairingStoppedTextNotification);
@@ -131,8 +131,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			Repairers.Add(player);
 
-			Game.Sound.PlayNotification(self.World.Map.Rules, player, "Speech", Info.RepairingNotification, player.Faction.InternalName);
-			TextNotificationsManager.AddTransientLine(self.Owner, Info.RepairingTextNotification);
+			if (notify)
+			{
+				Game.Sound.PlayNotification(self.World.Map.Rules, player, "Speech", Info.RepairingNotification, player.Faction.InternalName);
+				TextNotificationsManager.AddTransientLine(self.Owner, Info.RepairingTextNotification);
+			}
 
 			UpdateCondition(self);
 		}

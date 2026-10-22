@@ -47,6 +47,7 @@ button-top-buttons-beacon-tooltip = Place Beacon
 button-top-buttons-sell-tooltip = Sell
 button-top-buttons-power-tooltip = Power Down
 button-top-buttons-repair-tooltip = Repair
+button-top-buttons-repair-all-tooltip = Repair All
 
 button-production-types-building-tooltip = Buildings
 button-production-types-defense-tooltip = Defense

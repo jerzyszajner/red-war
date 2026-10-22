@@ -379,6 +379,21 @@ Container@PLAYER_WIDGETS:
 									X: 6
 									Y: 6
 									ImageCollection: order-icons
+						Button@REPAIR_ALL_BUTTON:
+							Logic: RepairAllOrderButtonLogic, AddFactionSuffixLogic
+							X: 128
+							Width: 28
+							Height: 28
+							Background: sidebar-button
+							Key: RepairAll
+							TooltipText: button-top-buttons-repair-all-tooltip
+							TooltipContainer: TOOLTIP_CONTAINER
+							VisualHeight: 0
+							Children:
+								Image@ICON:
+									X: 6
+									Y: 6
+									ImageCollection: order-icons
 						MenuButton@OPTIONS_BUTTON:
 							Logic: AddFactionSuffixLogic
 							X: 192

@@ -32,3 +32,8 @@ PowerDown: X
 	Description: hotkey-description-powerdown
 	Types: OrderGenerator
 	Contexts: player
+
+RepairAll: C Shift
+	Description: hotkey-description-repairall
+	Types: World
+	Contexts: player

@@ -170,6 +170,8 @@ order-icons:
 		repair: 136, 68, 16, 16
 		repair-disabled: 136, 85, 16, 16
 		repair-active: 136, 102, 16, 16
+		repair-all: 72, 146, 16, 16
+		repair-all-active: 89, 146, 16, 16
 		sell: 119, 68, 16, 16
 		sell-disabled: 119, 85, 16, 16
 		sell-active: 119, 102, 16, 16

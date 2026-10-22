@@ -19,6 +19,9 @@ namespace OpenRA.Mods.Common.Traits
 
 	sealed class AllyRepair : IResolveOrder
 	{
+		// Set in Order.ExtraData to repair without the notification, so batched orders announce only once.
+		public const uint SilentExtraData = 1;
+
 		public void ResolveOrder(Actor self, Order order)
 		{
 			if (order.OrderString == "RepairBuilding" && order.Target.Type == TargetType.Actor)
@@ -27,7 +30,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (!building.AppearsFriendlyTo(self))
 					return;
 
-				building.TraitOrDefault<RepairableBuilding>()?.RepairBuilding(building, self.Owner);
+				building.TraitOrDefault<RepairableBuilding>()?.RepairBuilding(building, self.Owner, order.ExtraData != SilentExtraData);
 			}
 		}
 	}
