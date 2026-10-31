@@ -31,37 +31,31 @@ Players:
 		Playable: True
 		Faction: Random
 		Enemies: Creeps
-		AllowBots: false
 	PlayerReference@Multi1:
 		Name: Multi1
 		Playable: True
 		Faction: Random
 		Enemies: Creeps
-		AllowBots: false
 	PlayerReference@Multi2:
 		Name: Multi2
 		Playable: True
 		Faction: Random
 		Enemies: Creeps
-		AllowBots: false
 	PlayerReference@Multi3:
 		Name: Multi3
 		Playable: True
 		Faction: Random
 		Enemies: Creeps
-		AllowBots: false
 	PlayerReference@Multi4:
 		Name: Multi4
 		Playable: True
 		Faction: Random
 		Enemies: Creeps
-		AllowBots: false
 	PlayerReference@Multi5:
 		Name: Multi5
 		Playable: True
 		Faction: Random
 		Enemies: Creeps
-		AllowBots: false
 
 Actors:
 	Actor0: mpspawn
