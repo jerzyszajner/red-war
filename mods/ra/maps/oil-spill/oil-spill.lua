@@ -15,10 +15,68 @@ SpawnBuildings =
 	{ FCOMBottomRight, OilBottomRight1, OilBottomRight2, OilBottomRight3 },
 }
 
-ExpansionInterval = 125
-LoadTimeout = 1500
-SailTimeout = 2500
-MinEngineers = 1
+-- Tuning values. Ticks are game ticks; ranges are in cells.
+-- CellDistSq compares squared distances, so a range used with it is written Sq(Range) in the code.
+Sq = function(n)
+	return n * n
+end
+
+-- Timing (ticks)
+ExpansionInterval = 125 -- between two runs of the expansion logic
+LoadTimeout = 1500 -- a boat with nobody aboard gives up waiting for engineers
+SailTimeout = 2500 -- a trip that takes longer is abandoned and the boat goes home
+GatherTimeout = 500 -- a boat waits this long until its escort is close, so they pass danger together
+OrderTimeout = 2000 -- a capture order this old is stuck: the target cannot be reached and the engineer would wait for a path forever
+AboardTimeout = 1500 -- an idle transport puts its crew down at home after this, so engineers are not stuck aboard for good
+PickupTimeout = 600 -- a transport driving to its engineer stops waiting and starts loading
+BoardTimeout = 750 -- loading stops after this and the boat sails with whoever is aboard
+RegroupTimeout = 500 -- engineers that did not board in time stop chasing the transport
+UnloadDelay = 1000 -- targets stay reserved this long after unloading, while the first engineers capture
+CaptureCheckDelay = 800 -- delay before checking whether a capture attempt worked
+BlockCacheTicks = 250 -- how long a "cell is blocked" answer is reused
+FailedTargetTicks = 3000 -- a target a transport could not deliver to is skipped for this long
+EngineerRetryTicks = 3000 -- an engineer does not pick a target it just tried again for this long
+ArrivalSettleTicks = 150 -- a boat that reached the shore waits this long before it counts as arrived
+WhyLogTicks = 750 -- the same decision reason is logged at most this often
+SurplusIdleTicks = 1500 -- an engineer must idle this long before it counts as surplus (0 when urgent)
+EngLogEvery = 16 -- the engineer summary is logged on every Nth tick of the expansion logic
+
+-- Counts
+MinEngineers = 1 -- engineers a base keeps near it before the rest are sent out
+MaxRetries = 4 -- unload attempts at the shore before the boat gives up
+MaxGroupSize = 5 -- engineers sent together as one group
+ShoreSearchRadius = 10 -- cells searched for open shore water
+
+-- Ranges (cells)
+DefenceThreatRange = 8 -- an enemy defence building threatens cells this close
+AntiAirThreatRange = 9 -- an enemy anti-air building threatens aircraft this close
+OtherThreatRange = 6 -- any other enemy combat unit threatens cells this close
+LandingThreatRange = 20 -- enemy threats this close to the target count when picking a landing
+EscortSearchRange = 40 -- idle warships this close to the boat can be picked as escort
+EscortCloseRange = 5 -- the escort counts as close to the boat
+EscortStrayRange = 10 -- an escort farther than this from the boat is told to guard again
+EscortReleaseRange = 10 -- escorts this close to the boat are stopped when the trip ends
+PickupFarRange = 10 -- a transport this far from its engineer drives there first
+HomeRange = 6 -- a transport this close to its start counts as home
+TargetClusterRange = 18 -- other targets this close to the main target ride along
+RetakeSendRange = 20 -- an engineer this close to a lost building can be sent to retake it
+TargetSearchRange = 50 -- landed engineers look for targets this far away
+NearbyRange = 12 -- "close by" for a hurt target, a group, an own building or the anchor
+BaseRange = 15 -- an engineer this close to an own base is not stranded
+DangerPenalty = 100 -- cost of a cell per point of danger when searching for a landing
+ArrivedRange = 2 -- a boat this close to its shore cell has arrived
+AirLandingRadius = 5 -- cells searched for a helicopter landing spot
+AirLandingMinRange = 2 -- a helicopter lands at least this far from the target
+ShoreLandingRadius = 7 -- cells searched for a boat landing spot
+
+-- Score
+LossBonus = 1000000 -- subtracted from the distance of a lost building, so it is always picked first
+
+-- Map units (1024 per cell)
+HalfCell = 512
+OccupiedRadius = 2048 -- actors this far away are checked when testing whether a cell is blocked
+OwnedRadius = 1024 -- a building this close to its location counts as ours
+
 ExpansionTypes = { oilb = true, ["oilb.husk"] = true, fcom = true }
 
 Missions = { }
@@ -105,8 +163,8 @@ end
 -- footprint away from there.
 Covers = function(a, cell)
 	local corner = Map.CenterOfCell(a.Location)
-	local w = math.floor((a.CenterPosition.X - corner.X) / 512 + 0.5)
-	local h = math.floor((a.CenterPosition.Y - corner.Y) / 512 + 0.5)
+	local w = math.floor((a.CenterPosition.X - corner.X) / HalfCell + 0.5)
+	local h = math.floor((a.CenterPosition.Y - corner.Y) / HalfCell + 0.5)
 	return cell.X >= math.min(a.Location.X, a.Location.X + w) and cell.X <= math.max(a.Location.X, a.Location.X + w)
 		and cell.Y >= math.min(a.Location.Y, a.Location.Y + h) and cell.Y <= math.max(a.Location.Y, a.Location.Y + h)
 end
@@ -121,12 +179,12 @@ IsBlocked = function(cell)
 	local key = CellKey(cell)
 	local now = DateTime.GameTime
 	local cached = BlockCache[key]
-	if cached and now - cached.t < 250 then
+	if cached and now - cached.t < BlockCacheTicks then
 		return cached.blocked
 	end
 
 	local ok, blocked = pcall(function()
-		return Utils.Any(Map.ActorsInCircle(Map.CenterOfCell(cell), WDist.New(2048)), function(a)
+		return Utils.Any(Map.ActorsInCircle(Map.CenterOfCell(cell), WDist.New(OccupiedRadius)), function(a)
 			return not a.IsDead and not a.HasProperty("Move") and Covers(a, cell)
 		end)
 	end)
@@ -194,11 +252,11 @@ EnemyThreats = function(p)
 	for _, a in ipairs(TickActors) do
 		if not a.IsDead and a.Owner ~= p and not a.Owner.IsNonCombatant and not a.Owner.IsAlliedWith(p) then
 			if DefenceTypes[a.Type] then
-				list[#list + 1] = { actor = a, location = a.Location, weight = DefenceTypes[a.Type], rangeSq = 64 }
+				list[#list + 1] = { actor = a, location = a.Location, weight = DefenceTypes[a.Type], rangeSq = Sq(DefenceThreatRange) }
 			elseif AntiAirTypes[a.Type] then
-				list[#list + 1] = { actor = a, location = a.Location, weight = AntiAirTypes[a.Type], rangeSq = 81, air = true }
+				list[#list + 1] = { actor = a, location = a.Location, weight = AntiAirTypes[a.Type], rangeSq = Sq(AntiAirThreatRange), air = true }
 			elseif a.IsInWorld and a.HasProperty("Attack") then
-				list[#list + 1] = { actor = a, location = a.Location, weight = 1, rangeSq = 36 }
+				list[#list + 1] = { actor = a, location = a.Location, weight = 1, rangeSq = Sq(OtherThreatRange) }
 			end
 		end
 	end
@@ -226,18 +284,18 @@ FindLanding = function(T, location, bad)
 	-- Only threats in reach of the search area matter.
 	local near = { }
 	for _, t in ipairs(Threats) do
-		if CellDistSq(location, t.location) <= 400 then
+		if CellDistSq(location, t.location) <= Sq(LandingThreatRange) then
 			near[#near + 1] = t
 		end
 	end
 
 	local air = T.Type == "tran"
-	local penalty = function(cell) return DangerAt(cell, air, near) * 100 end
+	local penalty = function(cell) return DangerAt(cell, air, near) * DangerPenalty end
 	if air then
-		return FindNearestCell(location, 5, bad, 4, IsLandable, penalty)
+		return FindNearestCell(location, AirLandingRadius, bad, Sq(AirLandingMinRange), IsLandable, penalty)
 	end
 
-	return FindNearestCell(location, 7, bad, 0, IsShoreWater, penalty)
+	return FindNearestCell(location, ShoreLandingRadius, bad, 0, IsShoreWater, penalty)
 end
 
 -- Targets a transport could not deliver to are skipped for a while,
@@ -252,7 +310,7 @@ end
 
 RecentlyFailed = function(p, a)
 	local t = FailedTargets[p.Name .. TargetKey(a)]
-	return t and DateTime.GameTime - t < 3000
+	return t and DateTime.GameTime - t < FailedTargetTicks
 end
 
 -- The world is scanned once per tick and shared by all bots.
@@ -296,7 +354,7 @@ end
 AssignEscorts = function(p, T, m)
 	local ships = { }
 	Utils.Do(p.GetActorsByTypes(EscortTypes), function(s)
-		if not s.IsDead and s.IsInWorld and s.IsIdle and CellDistSq(s.Location, T.Location) <= 1600 and not IsEscort(s) then
+		if not s.IsDead and s.IsInWorld and s.IsIdle and CellDistSq(s.Location, T.Location) <= Sq(EscortSearchRange) and not IsEscort(s) then
 			ships[#ships + 1] = s
 		end
 	end)
@@ -314,16 +372,13 @@ AssignEscorts = function(p, T, m)
 	end
 end
 
--- The boat waits until its escort is close, so they pass danger together.
-GatherTimeout = 500
-
 EscortsClose = function(T, m)
-	return Utils.All(m.escorts, function(s) return s.IsDead or CellDistSq(s.Location, T.Location) <= 25 end)
+	return Utils.All(m.escorts, function(s) return s.IsDead or CellDistSq(s.Location, T.Location) <= Sq(EscortCloseRange) end)
 end
 
 KeepEscorts = function(T, m)
 	for _, s in ipairs(m.escorts or { }) do
-		if not s.IsDead and (s.IsIdle or CellDistSq(s.Location, T.Location) > 100) then
+		if not s.IsDead and (s.IsIdle or CellDistSq(s.Location, T.Location) > Sq(EscortStrayRange)) then
 			s.Guard(T)
 		end
 	end
@@ -333,7 +388,7 @@ end
 -- elsewhere by the squad manager and keep that order.
 ReleaseEscorts = function(m)
 	for _, s in ipairs(m.escorts or { }) do
-		if not s.IsDead and not m.transport.IsDead and CellDistSq(s.Location, m.transport.Location) <= 100 then
+		if not s.IsDead and not m.transport.IsDead and CellDistSq(s.Location, m.transport.Location) <= Sq(EscortReleaseRange) then
 			s.Stop()
 		end
 	end
@@ -445,15 +500,15 @@ WhyLog = { }
 Why = function(p, reason, detail)
 	local key = p.Name .. reason
 	local now = DateTime.GameTime
-	if not WhyLog[key] or now - WhyLog[key] > 750 then
+	if not WhyLog[key] or now - WhyLog[key] > WhyLogTicks then
 		WhyLog[key] = now
 		print("EXPWHY t=" .. now .. " " .. p.Name .. " " .. reason .. (detail and " " .. detail or ""))
 	end
 end
 
 CheckResult = function(p, type, location)
-	Trigger.AfterDelay(800, function()
-		local owned = Utils.Any(Map.ActorsInCircle(Map.CenterOfCell(location), WDist.New(1024)), function(a)
+	Trigger.AfterDelay(CaptureCheckDelay, function()
+		local owned = Utils.Any(Map.ActorsInCircle(Map.CenterOfCell(location), WDist.New(OwnedRadius)), function(a)
 			return not a.IsDead and a.Owner == p and ExpansionTypes[a.Type] and a.Location == location
 		end)
 		print("EXPRES t=" .. DateTime.GameTime .. " " .. p.Name .. " " .. type .. " " .. location.X .. "," .. location.Y .. " " .. (owned and "captured" or "failed"))
@@ -496,7 +551,7 @@ StartMission = function(p, T, crew)
 		else
 			local score = CellDistSq(T.Location, a.Location)
 			if IsLoss(p, a) then
-				score = score - 1000000
+				score = score - LossBonus
 			elseif WasOwned(p, a) then
 				score = score / 4
 			elseif not a.Owner.IsNonCombatant then
@@ -536,7 +591,7 @@ StartMission = function(p, T, crew)
 	if not retake then
 		local nearby = { }
 		for _, a in ipairs(targets) do
-			if a ~= primary and CellDistSq(primary.Location, a.Location) <= 324 and not IsDefended(a, air) then
+			if a ~= primary and CellDistSq(primary.Location, a.Location) <= Sq(TargetClusterRange) and not IsDefended(a, air) then
 				nearby[#nearby + 1] = a
 			end
 		end
@@ -574,11 +629,11 @@ StartMission = function(p, T, crew)
 	end
 
 	local state = "load"
-	if T.Type == "tran" and #T.Passengers == 0 and CellDistSq(eng[1].Location, T.Location) > 100 then
+	if T.Type == "tran" and #T.Passengers == 0 and CellDistSq(eng[1].Location, T.Location) > Sq(PickupFarRange) then
 		T.Move(eng[1].Location)
 		state = "pickup"
 	elseif T.Type ~= "tran" and #T.Passengers == 0 then
-		local pickup = FindNearestCell(eng[1].Location, 10, nil, 0, IsShoreWater)
+		local pickup = FindNearestCell(eng[1].Location, ShoreSearchRadius, nil, 0, IsShoreWater)
 		if pickup then
 			T.Move(pickup)
 			state = "pickup"
@@ -628,9 +683,9 @@ HasArrived = function(T, m, now)
 		return T.IsIdle
 	end
 
-	if T.IsIdle or CellDistSq(T.Location, m.shore) <= 4 then
+	if T.IsIdle or CellDistSq(T.Location, m.shore) <= Sq(ArrivedRange) then
 		m.arrivedAt = m.arrivedAt or now
-		return now - m.arrivedAt > 150
+		return now - m.arrivedAt > ArrivalSettleTicks
 	end
 
 	return false
@@ -640,14 +695,14 @@ UpdateMission = function(p, T, m)
 	local now = DateTime.GameTime
 
 	if m.state == "pickup" then
-		if T.IsIdle or now - m.t0 > 600 then
+		if T.IsIdle or now - m.t0 > PickupTimeout then
 			m.state = "load"
 			m.t0 = now
 		end
 	elseif m.state == "load" then
 		local alive = BoardAll(T, m.engineers)
 		local n = T.PassengerCount
-		if n > 0 and (n >= alive or now - m.t0 > 750) then
+		if n > 0 and (n >= alive or now - m.t0 > BoardTimeout) then
 			m.passengers = T.Passengers
 			if T.Type ~= "tran" then
 				AssignEscorts(p, T, m)
@@ -707,7 +762,7 @@ UpdateMission = function(p, T, m)
 			end
 
 			m.t0 = now
-		elseif T.PassengerCount > 0 and m.retries < 4 and HasArrived(T, m, now) then
+		elseif T.PassengerCount > 0 and m.retries < MaxRetries and HasArrived(T, m, now) then
 			-- Arrived but nobody could get off: try a different landing spot.
 			m.bad[CellKey(m.shore)] = true
 			m.retries = m.retries + 1
@@ -720,9 +775,9 @@ UpdateMission = function(p, T, m)
 				T.UnloadPassengers()
 				m.t0 = now
 			else
-				m.retries = 4
+				m.retries = MaxRetries
 			end
-		elseif now - m.t0 > SailTimeout or (T.IsIdle and T.PassengerCount > 0 and m.retries >= 4) then
+		elseif now - m.t0 > SailTimeout or (T.IsIdle and T.PassengerCount > 0 and m.retries >= MaxRetries) then
 			T.Move(m.home)
 			MarkFailed(p, m)
 			ReleaseMission(m)
@@ -731,7 +786,7 @@ UpdateMission = function(p, T, m)
 	elseif m.state == "regroup" then
 		local alive = BoardAll(T, m.regroup)
 		local n = T.PassengerCount
-		if alive == 0 or n >= alive or now - m.t0 > 500 then
+		if alive == 0 or n >= alive or now - m.t0 > RegroupTimeout then
 			-- Those who did not make it aboard stop chasing the transport.
 			for _, e in ipairs(m.regroup) do
 				if not e.IsDead and e.IsInWorld then
@@ -746,7 +801,7 @@ UpdateMission = function(p, T, m)
 			-- Keep the targets reserved while the first engineers are still capturing.
 			local keys = m.keys
 			m.keys = { }
-			Trigger.AfterDelay(1000, function()
+			Trigger.AfterDelay(UnloadDelay, function()
 				for _, key in ipairs(keys) do
 					Claimed[key] = nil
 				end
@@ -762,7 +817,7 @@ UpdateMission = function(p, T, m)
 			end
 		end
 	elseif m.state == "return" then
-		if T.IsIdle or (T.Type == "tran" and CellDistSq(T.Location, m.home) <= 36) or now - m.t0 > SailTimeout then
+		if T.IsIdle or (T.Type == "tran" and CellDistSq(T.Location, m.home) <= Sq(HomeRange)) or now - m.t0 > SailTimeout then
 			ReleaseMission(m)
 		end
 	end
@@ -812,7 +867,7 @@ WalkToLosses = function(p, free, losses)
 		local missing = RetakeCrew - WalkersTo(p, a)
 		for i = #free, 1, -1 do
 			local e = free[i]
-			if sent < missing and CellDistSq(e.Location, a.Location) <= 400 and e.CanCapture(a) then
+			if sent < missing and CellDistSq(e.Location, a.Location) <= Sq(RetakeSendRange) and e.CanCapture(a) then
 				e.Capture(a)
 				local entry = AddLanded({ actor = e })
 				entry.order = { actor = a, key = TargetKey(a) }
@@ -854,12 +909,8 @@ LandedCandidates = function(p, probe)
 	return list
 end
 
--- A capture order that runs this long is stuck: the target cannot be reached,
--- and the engineer would wait for a path forever.
-OrderTimeout = 2000
-
 IsTried = function(entry, key, now)
-	return entry.tried[key] and now - entry.tried[key] <= 3000
+	return entry.tried[key] and now - entry.tried[key] <= EngineerRetryTicks
 end
 
 -- The nearest lost building this engineer can still help to take back.
@@ -868,7 +919,7 @@ NearestLoss = function(p, e, entry, losses, taken, now)
 	for _, a in ipairs(losses) do
 		local key = TargetKey(a)
 		local d = CellDistSq(e.Location, a.Location)
-		if d <= 2500 and (not bestDist or d < bestDist) and (taken[key] or 0) < RetakeCrew and not IsTried(entry, key, now) then
+		if d <= Sq(TargetSearchRange) and (not bestDist or d < bestDist) and (taken[key] or 0) < RetakeCrew and not IsTried(entry, key, now) then
 			best = a
 			bestDist = d
 		end
@@ -954,15 +1005,15 @@ ManageLanded = function(p, losses)
 				local d = CellDistSq(e.Location, c.location)
 				if c.hurt then
 					local key = TargetKey(c.actor)
-					if d <= 144 and (not hurtDist or d < hurtDist) and not IsTried(entry, key, now) then
+					if d <= Sq(NearbyRange) and (not hurtDist or d < hurtDist) and not IsTried(entry, key, now) then
 						hurt = c.actor
 						hurtDist = d
 						hurtKey = key
 					end
-				elseif d <= 2500 then
+				elseif d <= Sq(TargetSearchRange) then
 					local rank = d
 					if IsLoss(p, c.actor) then
-						rank = d - 1000000
+						rank = d - LossBonus
 					elseif WasOwned(p, c.actor) then
 						rank = d / 4
 					elseif ExpansionTypes[c.actor.Type] then
@@ -1010,7 +1061,7 @@ TakeSurplus = function(p, now, minIdle)
 		if not e.IsDead and e.IsInWorld and e.Owner == p and entry.idleSince and now - entry.idleSince >= minIdle then
 			if #group == 0 then
 				group[1] = { entry = entry, index = i }
-			elseif CellDistSq(group[1].entry.actor.Location, e.Location) <= 144 and #group < 5 then
+			elseif CellDistSq(group[1].entry.actor.Location, e.Location) <= Sq(NearbyRange) and #group < MaxGroupSize then
 				group[#group + 1] = { entry = entry, index = i }
 			end
 		end
@@ -1028,7 +1079,7 @@ TakeSurplus = function(p, now, minIdle)
 		-- A lone engineer has nothing to guard when we own no building near it.
 		local e = group[1].entry.actor
 		local owned = p.GetActorsByTypes({ "oilb", "fcom" })
-		if not Utils.Any(owned, function(b) return not b.IsDead and CellDistSq(e.Location, b.Location) <= 144 end) then
+		if not Utils.Any(owned, function(b) return not b.IsDead and CellDistSq(e.Location, b.Location) <= Sq(NearbyRange) end) then
 			crew[1] = e
 			entries[1] = group[1].entry
 		end
@@ -1050,7 +1101,6 @@ end
 
 -- Transports with engineers aboard and nothing to do. After AboardTimeout they
 -- put the crew down at home, so the engineers are not stuck aboard for good.
-AboardTimeout = 1500
 Waiting = { }
 
 WaitedFor = function(T)
@@ -1084,7 +1134,7 @@ UnloadAtHome = function(p, T)
 	if T.Type == "tran" then
 		cell = FindLanding(T, base.Location, nil)
 	else
-		cell = FindNearestCell(base.Location, 10, nil, 0, IsShoreWater)
+		cell = FindNearestCell(base.Location, ShoreSearchRadius, nil, 0, IsShoreWater)
 	end
 
 	if cell then
@@ -1103,7 +1153,7 @@ ManageBot = function(p)
 		if not e.IsDead and e.IsInWorld and e.IsIdle and not IsBusy(e) and not IsLanded(e) then
 			-- Far from every own base: stranded by a lost transport or a timed out
 			-- mission, so treat it like an engineer that was dropped off.
-			if #bases == 0 or Utils.Any(bases, function(b) return not b.IsDead and CellDistSq(e.Location, b.Location) <= 225 end) then
+			if #bases == 0 or Utils.Any(bases, function(b) return not b.IsDead and CellDistSq(e.Location, b.Location) <= Sq(BaseRange) end) then
 				free[#free + 1] = e
 			else
 				AddLanded({ actor = e })
@@ -1120,7 +1170,7 @@ ManageBot = function(p)
 	local transports = p.GetActorsByTypes({ "lst", "tran" })
 
 	EngLogCounter[p.Name] = (EngLogCounter[p.Name] or 0) + 1
-	if EngLogCounter[p.Name] % 16 == 0 then
+	if EngLogCounter[p.Name] % EngLogEvery == 0 then
 		local aboard, hunting, waiting, busy = 0, 0, 0, 0
 		Utils.Do(transports, function(T) aboard = aboard + T.PassengerCount end)
 		for _, entry in ipairs(Landed) do
@@ -1179,13 +1229,13 @@ ManageBot = function(p)
 
 			local near = { }
 			for _, e in ipairs(free) do
-				if CellDistSq(e.Location, anchor.Location) <= 144 then
+				if CellDistSq(e.Location, anchor.Location) <= Sq(NearbyRange) then
 					near[#near + 1] = e
 				end
 			end
 
 			if #near < MinEngineers then
-				local surplus, entries = TakeSurplus(p, DateTime.GameTime, urgent and 0 or 1500)
+				local surplus, entries = TakeSurplus(p, DateTime.GameTime, urgent and 0 or SurplusIdleTicks)
 				if #surplus > 0 then
 					StartMission(p, T, surplus)
 					if FindMission(T) then
