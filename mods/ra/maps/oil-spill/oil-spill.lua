@@ -275,7 +275,74 @@ FreeTargets = function(p, probe)
 	return list
 end
 
+-- Idle warships guard a boat on its trip. The engine's squad manager still owns
+-- them and may send them elsewhere, so a ship that drifted away or went idle is
+-- told to guard again.
+EscortTypes = { "dd", "pt" }
+MaxEscorts = 2
+
+IsEscort = function(ship)
+	for _, m in ipairs(Missions) do
+		for _, s in ipairs(m.escorts or { }) do
+			if s == ship then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+AssignEscorts = function(p, T, m)
+	local ships = { }
+	Utils.Do(p.GetActorsByTypes(EscortTypes), function(s)
+		if not s.IsDead and s.IsInWorld and s.IsIdle and CellDistSq(s.Location, T.Location) <= 1600 and not IsEscort(s) then
+			ships[#ships + 1] = s
+		end
+	end)
+
+	table.sort(ships, function(x, y) return CellDistSq(x.Location, T.Location) < CellDistSq(y.Location, T.Location) end)
+
+	m.escorts = { }
+	for i = 1, math.min(#ships, MaxEscorts) do
+		m.escorts[i] = ships[i]
+		ships[i].Guard(T)
+	end
+
+	if #m.escorts > 0 then
+		print("EXP " .. p.Name .. " escort " .. #m.escorts)
+	end
+end
+
+-- The boat waits until its escort is close, so they pass danger together.
+GatherTimeout = 500
+
+EscortsClose = function(T, m)
+	return Utils.All(m.escorts, function(s) return s.IsDead or CellDistSq(s.Location, T.Location) <= 25 end)
+end
+
+KeepEscorts = function(T, m)
+	for _, s in ipairs(m.escorts or { }) do
+		if not s.IsDead and (s.IsIdle or CellDistSq(s.Location, T.Location) > 100) then
+			s.Guard(T)
+		end
+	end
+end
+
+-- Only ships still next to the boat are guarding it. Any others were sent
+-- elsewhere by the squad manager and keep that order.
+ReleaseEscorts = function(m)
+	for _, s in ipairs(m.escorts or { }) do
+		if not s.IsDead and not m.transport.IsDead and CellDistSq(s.Location, m.transport.Location) <= 100 then
+			s.Stop()
+		end
+	end
+
+	m.escorts = nil
+end
+
 ReleaseMission = function(m)
+	ReleaseEscorts(m)
 	for _, key in ipairs(m.keys) do
 		Claimed[key] = nil
 	end
@@ -582,16 +649,35 @@ UpdateMission = function(p, T, m)
 		local n = T.PassengerCount
 		if n > 0 and (n >= alive or now - m.t0 > 750) then
 			m.passengers = T.Passengers
-			T.Move(m.shore)
-			T.UnloadPassengers()
-			m.state = "sail"
+			if T.Type ~= "tran" then
+				AssignEscorts(p, T, m)
+			end
+
+			-- Waiting under fire is worse than sailing alone.
+			local safe = DangerAt(T.Location, false) == 0
+			m.state = (safe and m.escorts and #m.escorts > 0) and "gather" or "sail"
+			if m.state == "sail" then
+				T.Move(m.shore)
+				T.UnloadPassengers()
+			end
+
 			m.t0 = now
 		elseif n == 0 and now - m.t0 > LoadTimeout then
 			print("EXP " .. p.Name .. " load timeout, engineers alive=" .. alive)
 			ReleaseMission(m)
 		end
+	elseif m.state == "gather" then
+		KeepEscorts(T, m)
+		if EscortsClose(T, m) or now - m.t0 > GatherTimeout or DangerAt(T.Location, false) > 0 then
+			T.Move(m.shore)
+			T.UnloadPassengers()
+			m.state = "sail"
+			m.t0 = now
+		end
 	elseif m.state == "sail" then
+		KeepEscorts(T, m)
 		if (T.IsIdle or T.Type == "tran") and T.PassengerCount == 0 then
+			ReleaseEscorts(m)
 			local idx = 0
 			local regroup = { }
 			for _, e in ipairs(m.passengers) do
