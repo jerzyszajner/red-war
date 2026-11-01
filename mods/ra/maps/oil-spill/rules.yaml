@@ -64,6 +64,208 @@ OILB.Husk:
 	Targetable:
 		TargetTypes: building-husk
 
+Player:
+	BaseBuilderBotModule@rush:
+		ConstructionYardTypes: fact, fcom
+		InititalMinimumRefineryCount: 0
+		AdditionalMinimumRefineryCount: 0
+		NavalProductionTypes: spen, syrd
+		BuildingLimits:
+			spen: 2
+			syrd: 2
+			hpad: 2
+			afld: 2
+		BuildingFractions:
+			spen: 1
+			syrd: 1
+			tent: 1
+			gun: 4
+			ftur: 4
+			tsla: 3
+			agun: 4
+			hpad: 1
+			afld: 1
+		BuildingDelays:
+			spen: 200
+			syrd: 200
+			dome: 1500
+			hpad: 1500
+			afld: 2000
+	SquadManagerBotModule@rush:
+		ConstructionYardTypes: fact, fcom
+		ExcludeFromSquadsTypes: harv, mcv, dog, badr.bomber, u2, e6, lst, tran
+	UnitBuilderBotModule@rush:
+		ProductionMinCashRequirement: 0
+		UnitsToBuild:
+			e6: 150
+			lst: 150
+			tran: 100
+			dd: 40
+			ca: 20
+			ss: 20
+			msub: 20
+			pt: 15
+			yak: 20
+			mig: 8
+			heli: 12
+		UnitLimits:
+			e6: 14
+			lst: 3
+			tran: 2
+			yak: 4
+			mig: 2
+			heli: 3
+	BaseBuilderBotModule@normal:
+		ConstructionYardTypes: fact, fcom
+		InititalMinimumRefineryCount: 0
+		AdditionalMinimumRefineryCount: 0
+		NavalProductionTypes: spen, syrd
+		BuildingLimits:
+			spen: 2
+			syrd: 2
+			hpad: 2
+			afld: 2
+		BuildingFractions:
+			spen: 1
+			syrd: 1
+			tent: 1
+			gun: 4
+			ftur: 4
+			tsla: 3
+			agun: 4
+			hpad: 1
+			afld: 1
+		BuildingDelays:
+			spen: 200
+			syrd: 200
+			dome: 1500
+			hpad: 1500
+			afld: 2000
+	SquadManagerBotModule@normal:
+		ConstructionYardTypes: fact, fcom
+		ExcludeFromSquadsTypes: harv, mcv, dog, badr.bomber, u2, e6, lst, tran
+	UnitBuilderBotModule@normal:
+		ProductionMinCashRequirement: 0
+		UnitsToBuild:
+			e6: 150
+			lst: 150
+			tran: 100
+			dd: 40
+			ca: 20
+			ss: 20
+			msub: 20
+			pt: 15
+			yak: 20
+			mig: 8
+			heli: 12
+		UnitLimits:
+			e6: 14
+			lst: 3
+			tran: 2
+			yak: 4
+			mig: 2
+			heli: 3
+	BaseBuilderBotModule@turtle:
+		ConstructionYardTypes: fact, fcom
+		InititalMinimumRefineryCount: 0
+		AdditionalMinimumRefineryCount: 0
+		NavalProductionTypes: spen, syrd
+		BuildingLimits:
+			spen: 2
+			syrd: 2
+			hpad: 2
+			afld: 2
+		BuildingFractions:
+			spen: 1
+			syrd: 1
+			tent: 1
+			gun: 4
+			ftur: 4
+			tsla: 3
+			agun: 4
+			hpad: 1
+			afld: 1
+		BuildingDelays:
+			spen: 200
+			syrd: 200
+			dome: 1500
+			hpad: 1500
+			afld: 2000
+	SquadManagerBotModule@turtle:
+		ConstructionYardTypes: fact, fcom
+		ExcludeFromSquadsTypes: harv, mcv, dog, badr.bomber, u2, mnly, e6, lst, tran
+	UnitBuilderBotModule@turtle:
+		ProductionMinCashRequirement: 0
+		UnitsToBuild:
+			e6: 150
+			lst: 150
+			tran: 100
+			dd: 40
+			ca: 20
+			ss: 20
+			msub: 20
+			pt: 15
+			yak: 20
+			mig: 8
+			heli: 12
+		UnitLimits:
+			e6: 14
+			lst: 3
+			tran: 2
+			yak: 4
+			mig: 2
+			heli: 3
+	BaseBuilderBotModule@naval:
+		ConstructionYardTypes: fact, fcom
+		InititalMinimumRefineryCount: 0
+		AdditionalMinimumRefineryCount: 0
+		NavalProductionTypes: spen, syrd
+		BuildingLimits:
+			spen: 2
+			syrd: 2
+			hpad: 2
+			afld: 2
+		BuildingFractions:
+			spen: 1
+			syrd: 1
+			tent: 1
+			gun: 4
+			ftur: 4
+			tsla: 3
+			agun: 4
+			hpad: 1
+			afld: 1
+		BuildingDelays:
+			spen: 200
+			syrd: 200
+			dome: 1500
+			hpad: 1500
+			afld: 2000
+	SquadManagerBotModule@naval:
+		ConstructionYardTypes: fact, fcom
+		ExcludeFromSquadsTypes: harv, mcv, dog, badr.bomber, u2, e6, lst, tran
+	UnitBuilderBotModule@naval:
+		ProductionMinCashRequirement: 0
+		UnitsToBuild:
+			e6: 150
+			lst: 150
+			tran: 100
+			dd: 40
+			ca: 20
+			ss: 20
+			msub: 20
+			pt: 15
+			yak: 20
+			mig: 8
+			heli: 12
+		UnitLimits:
+			e6: 14
+			lst: 3
+			tran: 2
+			yak: 4
+			mig: 2
+			heli: 3
+
 E6:
 	Captures@husk:
 		RequiresCondition: !global-reusable-engineers
