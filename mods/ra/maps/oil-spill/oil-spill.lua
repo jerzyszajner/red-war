@@ -157,16 +157,20 @@ IsLandable = function(cell)
 	return open >= 4
 end
 
-FindNearestCell = function(c, radius, bad, minDistSq, usable)
-	local best, bestDist
+-- The penalty, if given, is added to the squared distance of a usable cell.
+FindNearestCell = function(c, radius, bad, minDistSq, usable, penalty)
+	local best, bestCost
 	for dx = -radius, radius do
 		for dy = -radius, radius do
 			local d = dx * dx + dy * dy
-			if d >= minDistSq and (not bestDist or d < bestDist) then
+			if d >= minDistSq and (not bestCost or d < bestCost) then
 				local cell = CPos.New(c.X + dx, c.Y + dy)
 				if usable(cell) and not (bad and bad[CellKey(cell)]) then
-					best = cell
-					bestDist = d
+					local cost = d + (penalty and penalty(cell) or 0)
+					if not bestCost or cost < bestCost then
+						best = cell
+						bestCost = cost
+					end
 				end
 			end
 		end
@@ -175,12 +179,64 @@ FindNearestCell = function(c, radius, bad, minDistSq, usable)
 	return best
 end
 
-FindLanding = function(T, location, bad)
-	if T.Type == "tran" then
-		return FindNearestCell(location, 5, bad, 4, IsLandable)
+-- Enemy defences and combat units, weighted by how much harm they do to a
+-- landing party. Anti-air only matters for helicopters.
+DefenceTypes = { pbox = 2, hbox = 2, gun = 2, ftur = 2, tsla = 3 }
+AntiAirTypes = { agun = 3, sam = 3 }
+DefendedDanger = 2
+
+-- Filled by ManageBot for the bot it is working on.
+Threats = { }
+
+EnemyThreats = function(p)
+	local list = { }
+	for _, a in ipairs(TickActors) do
+		if not a.IsDead and a.Owner ~= p and not a.Owner.IsNonCombatant and not a.Owner.IsAlliedWith(p) then
+			if DefenceTypes[a.Type] then
+				list[#list + 1] = { actor = a, location = a.Location, weight = DefenceTypes[a.Type], rangeSq = 64 }
+			elseif AntiAirTypes[a.Type] then
+				list[#list + 1] = { actor = a, location = a.Location, weight = AntiAirTypes[a.Type], rangeSq = 81, air = true }
+			elseif a.IsInWorld and a.HasProperty("Attack") then
+				list[#list + 1] = { actor = a, location = a.Location, weight = 1, rangeSq = 36 }
+			end
+		end
 	end
 
-	return FindNearestCell(location, 7, bad, 0, IsShoreWater)
+	return list
+end
+
+-- A captured defence counts as well: it still shoots at the engineers.
+DangerAt = function(cell, air, threats)
+	local danger = 0
+	for _, t in ipairs(threats or Threats) do
+		if (air or not t.air) and CellDistSq(cell, t.location) <= t.rangeSq then
+			danger = danger + t.weight
+		end
+	end
+
+	return danger
+end
+
+IsDefended = function(a, air)
+	return DangerAt(a.Location, air) >= DefendedDanger
+end
+
+FindLanding = function(T, location, bad)
+	-- Only threats in reach of the search area matter.
+	local near = { }
+	for _, t in ipairs(Threats) do
+		if CellDistSq(location, t.location) <= 400 then
+			near[#near + 1] = t
+		end
+	end
+
+	local air = T.Type == "tran"
+	local penalty = function(cell) return DangerAt(cell, air, near) * 100 end
+	if air then
+		return FindNearestCell(location, 5, bad, 4, IsLandable, penalty)
+	end
+
+	return FindNearestCell(location, 7, bad, 0, IsShoreWater, penalty)
 end
 
 -- Targets a transport could not deliver to are skipped for a while,
@@ -301,12 +357,13 @@ IsLoss = function(p, a)
 end
 
 -- Lost buildings that an enemy still holds. Destroyed or retaken ones drop out.
+-- Defended ones wait until the defence is gone.
 PendingLosses = function(p)
 	local list = { }
 	for key, a in pairs(Losses[p.Name] or { }) do
 		if a.IsDead or a.Owner == p then
 			Losses[p.Name][key] = nil
-		elseif not a.Owner.IsAlliedWith(p) then
+		elseif not a.Owner.IsAlliedWith(p) and not IsDefended(a, false) then
 			list[#list + 1] = a
 		end
 	end
@@ -361,27 +418,40 @@ StartMission = function(p, T, crew)
 
 	-- Taking back what an enemy took from us comes first, however far it is.
 	-- Other enemy buildings are a worse choice than neutral oil and outposts.
+	-- Defended targets are skipped.
+	local air = T.Type == "tran"
 	local scored = { }
 	for _, a in ipairs(targets) do
-		local score = CellDistSq(T.Location, a.Location)
-		if IsLoss(p, a) then
-			score = score - 1000000
-		elseif WasOwned(p, a) then
-			score = score / 4
-		elseif not a.Owner.IsNonCombatant then
-			score = score * 4
-		end
+		local danger = DangerAt(a.Location, air)
+		if danger >= DefendedDanger then
+			Why(p, T.Type .. " skips defended target", TargetKey(a) .. " danger=" .. danger)
+		else
+			local score = CellDistSq(T.Location, a.Location)
+			if IsLoss(p, a) then
+				score = score - 1000000
+			elseif WasOwned(p, a) then
+				score = score / 4
+			elseif not a.Owner.IsNonCombatant then
+				score = score * 4
+			end
 
-		scored[#scored + 1] = { actor = a, score = score }
+			scored[#scored + 1] = { actor = a, score = score, danger = danger }
+		end
+	end
+
+	if #scored == 0 then
+		Why(p, T.Type .. " all free targets defended")
+		return
 	end
 
 	table.sort(scored, function(x, y) return x.score < y.score end)
 
-	local primary, shore
+	local primary, shore, danger
 	for i = 1, math.min(#scored, 6) do
 		shore = FindLanding(T, scored[i].actor.Location, nil)
 		if shore then
 			primary = scored[i].actor
+			danger = scored[i].danger
 			break
 		end
 	end
@@ -398,7 +468,7 @@ StartMission = function(p, T, crew)
 	if not retake then
 		local nearby = { }
 		for _, a in ipairs(targets) do
-			if a ~= primary and CellDistSq(primary.Location, a.Location) <= 324 then
+			if a ~= primary and CellDistSq(primary.Location, a.Location) <= 324 and not IsDefended(a, air) then
 				nearby[#nearby + 1] = a
 			end
 		end
@@ -465,7 +535,7 @@ StartMission = function(p, T, crew)
 	}
 
 	Missions[#Missions + 1] = m
-	print("EXP " .. p.Name .. " mission " .. primary.Type .. " by " .. T.Type .. " crew=" .. #eng .. " targets=" .. #missionTargets .. (retake and " retake" or "") .. " from " .. primary.Owner.Name)
+	print("EXP " .. p.Name .. " mission " .. primary.Type .. " by " .. T.Type .. " crew=" .. #eng .. " targets=" .. #missionTargets .. (retake and " retake" or "") .. " from " .. primary.Owner.Name .. " danger=" .. danger)
 end
 
 -- Sends idle units to the transport and returns how many of them are alive.
@@ -685,7 +755,7 @@ LandedCandidates = function(p, probe)
 	for _, a in ipairs(TickActors) do
 		if (ExpansionTypes[a.Type] or RepairTypes[a.Type]) and not a.IsDead and a.IsInWorld then
 			if a.Owner ~= p then
-				if not a.Owner.IsAlliedWith(p) and probe.CanCapture(a) then
+				if not a.Owner.IsAlliedWith(p) and not IsDefended(a, false) and probe.CanCapture(a) then
 					list[#list + 1] = { actor = a, location = a.Location, neutral = a.Owner.IsNonCombatant }
 				end
 			elseif RepairTypes[a.Type] and a.Health < a.MaxHealth / 2 then
@@ -954,6 +1024,7 @@ ManageBot = function(p)
 	end)
 
 	RememberOwned(p)
+	Threats = EnemyThreats(p)
 	local losses = PendingLosses(p)
 	WalkToLosses(p, free, losses)
 	ManageLanded(p, losses)
@@ -990,7 +1061,7 @@ ManageBot = function(p)
 
 		-- A lost building nobody is on the way to yet.
 		local urgent = Utils.Any(losses, function(a)
-			return not Claimed[TargetKey(a)] and not RecentlyFailed(p, a) and not IsWalkedTo(p, a)
+			return not Claimed[TargetKey(a)] and not RecentlyFailed(p, a) and not IsWalkedTo(p, a) and not IsDefended(a, T.Type == "tran")
 		end)
 
 		-- An empty transport on its way home turns around for a retake.
