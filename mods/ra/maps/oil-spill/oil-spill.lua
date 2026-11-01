@@ -902,7 +902,8 @@ ManageLanded = function(p, losses)
 			table.remove(Landed, i)
 		elseif e.Owner == p and e.IsInWorld and not e.IsIdle then
 			entry.busySince = entry.busySince or now
-			local loss = (not entry.order or not IsLoss(p, entry.order.actor)) and NearestLoss(p, e, entry, losses, taken, now)
+			-- A captured husk turns into a new building, so the order may point at a dead actor.
+			local loss = (not entry.order or entry.order.actor.IsDead or not IsLoss(p, entry.order.actor)) and NearestLoss(p, e, entry, losses, taken, now)
 			if loss then
 				-- Drop whatever it is doing: a lost building nearby comes first.
 				local key = TargetKey(loss)
