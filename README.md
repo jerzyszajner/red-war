@@ -11,6 +11,7 @@ and to see what can be achieved by changing it.
 
 Everything is on top of the unmodified OpenRA `bleed` branch as of October 2026.
 See [CHANGELOG.md](CHANGELOG.md) for the list of changes.
+Highlights: a Flak Tank, hold-to-queue production, a Repair All button and bots for the Oil Spill map.
 
 ## Building and running
 

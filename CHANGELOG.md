@@ -42,3 +42,13 @@ New button in the Red Alert sidebar, right next to Repair. Implemented in `Repai
 - The icon (two wrenches, built from the Repair icon) lights up amber like the Repair button while any building is being repaired.
 - **Hotkey:** Shift+C (`RepairAll`, can be changed in the settings).
 - A batch of orders plays the "Repairing" notification once instead of once per building.
+
+## Oil Spill bots (2026-11-01)
+
+Bots can be added on the Oil Spill map and play its oil derrick fight with engineers and boats.
+Implemented in the map script `mods/ra/maps/oil-spill/oil-spill.lua`, so it applies to this map only.
+
+- Capture neutral oil derricks and Forward Command Posts with engineers carried by transports, and retake them when lost.
+- Skip defended targets, and land boats only next to open ground.
+- Warships escort the transports.
+- Bots can build defences while short on cash.
