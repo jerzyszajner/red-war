@@ -82,7 +82,8 @@ IsWalkable = function(cell)
 	return WalkableTerrain[TerrainAt(cell)]
 end
 
--- Water with walkable land next to it, where a boat can put infantry ashore.
+-- Water with open land next to it, where a boat can put infantry ashore.
+-- Land under a building does not count: nobody can step off there.
 IsShoreWater = function(cell)
 	if TerrainAt(cell) ~= "Water" then
 		return false
@@ -90,7 +91,7 @@ IsShoreWater = function(cell)
 
 	for dx = -1, 1 do
 		for dy = -1, 1 do
-			if (dx ~= 0 or dy ~= 0) and IsWalkable(CPos.New(cell.X + dx, cell.Y + dy)) then
+			if (dx ~= 0 or dy ~= 0) and IsOpen(CPos.New(cell.X + dx, cell.Y + dy)) then
 				return true
 			end
 		end
